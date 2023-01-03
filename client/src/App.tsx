@@ -1,43 +1,13 @@
 import React, { useState } from 'react';
-import Worker from './hash.ts?worker';
+import { createFileChunks, calculateHashSample, createFormData } from './utils';
 
 const SIZE = 10 * 1024 * 1024;
 
 function App() {
   const [files, setFiles] = useState<File[]>([]);
 
-  const createFileChunks = (file: File, size = SIZE) => {
-    const chunks = [];
-    let count = 0;
-    while (count < file.size) {
-      chunks.push({ chunk: file.slice(count, count + size) });
-      count += size;
-    }
-    return chunks;
-  };
-
-  const createFormData = (data: Record<string, any>) => {
-    const formData = new FormData();
-    Object.entries(data).forEach(([key, value]) => formData.set(key, value));
-    return formData;
-  };
-
-  const calculateHash = (fileChunks: any) => {
-    return new Promise((resolve) => {
-      const worker = new Worker();
-      worker.postMessage({ fileChunks });
-      worker.addEventListener('message', (e) => {
-        resolve(e.data.hash);
-      });
-    });
-  };
-
   const uploadFile = async (file: File) => {
-    const fileChunks = createFileChunks(file);
-    // create file hash
-    const hash = await calculateHash(fileChunks);
-
-    console.log(fileChunks);
+    const hash = await calculateHashSample(file);
 
     // verify upload
     const { shouldUpload } = await fetch(
@@ -48,6 +18,8 @@ function App() {
       console.log('skip upload: file upload success!');
       return;
     }
+
+    const fileChunks = createFileChunks(file, SIZE);
 
     const tasks = fileChunks
       .map((chunk, index) =>
