@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import Worker from './hash.ts?worker';
 
 const SIZE = 10 * 1024 * 1024;
 
@@ -8,7 +9,7 @@ function App() {
   const createFileChunks = (file: File, size = SIZE) => {
     const chunks = [];
     let count = 0;
-    while (count < size) {
+    while (count < file.size) {
       chunks.push({ chunk: file.slice(count, count + size) });
       count += size;
     }
@@ -21,29 +22,62 @@ function App() {
     return formData;
   };
 
+  const calculateHash = (fileChunks: any) => {
+    return new Promise((resolve) => {
+      const worker = new Worker();
+      worker.postMessage({ fileChunks });
+      worker.addEventListener('message', (e) => {
+        resolve(e.data.hash);
+      });
+    });
+  };
+
   const uploadFile = async (file: File) => {
     const fileChunks = createFileChunks(file);
+    // create file hash
+    const hash = await calculateHash(fileChunks);
+
+    console.log(fileChunks);
+
+    // verify upload
+    const { shouldUpload } = await fetch(
+      `http://localhost:3000/upload-verify?filename=${file.name}&filehash=${hash}`
+    ).then((response) => response.json());
+
+    if (!shouldUpload) {
+      console.log('skip upload: file upload success!');
+      return;
+    }
+
     const tasks = fileChunks
       .map((chunk, index) =>
-        createFormData({ ...chunk, filename: file.name, hash: file.name + '-' + index })
+        createFormData({
+          ...chunk,
+          filename: file.name,
+          filehash: hash,
+          hash: `${hash}-${index}`,
+        })
       )
       .map((data) => () => fetch('http://localhost:3000/upload', { method: 'POST', body: data }));
 
     await Promise.all(tasks.map((task) => task()));
+
     // request merge
     await fetch('http://localhost:3000/upload-merge', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ filename: file.name, size: SIZE }),
+      body: JSON.stringify({ filename: file.name, filehash: hash, size: SIZE }),
     });
-    console.log(tasks);
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) uploadFile(file);
+    if (file) {
+      setFiles((s) => [...s, file]);
+      uploadFile(file);
+    }
   };
 
   return (

@@ -10,10 +10,22 @@ const router = new Router();
 
 const UPLOAD_DIR = path.resolve(__dirname, 'target');
 
+router.get('/upload-verify', (ctx) => {
+  const { filehash, filename } = ctx.request.query;
+  const ext = filename.match(/\.\w+$/)[0];
+  const filepath = path.resolve(UPLOAD_DIR, filehash + ext);
+
+  if (fs.existsSync(filepath)) {
+    ctx.body = { shouldUpload: false };
+  } else {
+    ctx.body = { shouldUpload: true };
+  }
+});
+
 router.post('/upload', async (ctx) => {
   const { chunk } = ctx.request.files;
-  const { filename, hash } = ctx.request.body;
-  const chunkDir = path.resolve(UPLOAD_DIR, 'chunkDir' + filename);
+  const { filehash, hash } = ctx.request.body;
+  const chunkDir = path.resolve(UPLOAD_DIR, 'chunkDir_' + filehash);
 
   await fs.ensureDir(chunkDir);
   await fs.move(chunk.filepath, `${chunkDir}/${hash}`);
@@ -21,13 +33,15 @@ router.post('/upload', async (ctx) => {
 });
 
 router.post('/upload-merge', async (ctx) => {
-  const { filename, size } = ctx.request.body;
-  const chunkDir = path.resolve(UPLOAD_DIR, 'chunkDir' + filename);
-  const filepath = path.resolve(UPLOAD_DIR, filename);
+  const { filename, filehash, size } = ctx.request.body;
+  const chunkDir = path.resolve(UPLOAD_DIR, 'chunkDir_' + filehash);
   const chunkPaths = await fs.readdir(chunkDir);
 
   // sort chunks
   chunkPaths.sort((a, b) => a.split('-')[1] - b.split('-')[1]);
+
+  const ext = filename.match(/\.\w+$/)[0];
+  const filepath = path.resolve(UPLOAD_DIR, filehash + ext);
 
   // write file
   await Promise.all(
