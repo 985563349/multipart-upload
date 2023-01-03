@@ -10,7 +10,7 @@ const router = new Router();
 
 const UPLOAD_DIR = path.resolve(__dirname, 'target');
 
-router.get('/upload-verify', (ctx) => {
+router.get('/upload-verify', async (ctx) => {
   const { filehash, filename } = ctx.request.query;
   const ext = filename.match(/\.\w+$/)[0];
   const filepath = path.resolve(UPLOAD_DIR, filehash + ext);
@@ -18,7 +18,9 @@ router.get('/upload-verify', (ctx) => {
   if (fs.existsSync(filepath)) {
     ctx.body = { shouldUpload: false };
   } else {
-    ctx.body = { shouldUpload: true };
+    const chunkDir = path.resolve(UPLOAD_DIR, 'chunkDir_' + filehash);
+    const uploaded = fs.existsSync(chunkDir) ? await fs.readdir(chunkDir) : [];
+    ctx.body = { shouldUpload: true, uploaded };
   }
 });
 

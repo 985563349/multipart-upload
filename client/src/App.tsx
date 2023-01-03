@@ -10,7 +10,7 @@ function App() {
     const hash = await calculateHashSample(file);
 
     // verify upload
-    const { shouldUpload } = await fetch(
+    const { shouldUpload, uploaded } = await fetch(
       `http://localhost:3000/upload-verify?filename=${file.name}&filehash=${hash}`
     ).then((response) => response.json());
 
@@ -22,15 +22,17 @@ function App() {
     const fileChunks = createFileChunks(file, SIZE);
 
     const tasks = fileChunks
-      .map((chunk, index) =>
-        createFormData({
-          ...chunk,
-          filename: file.name,
-          filehash: hash,
-          hash: `${hash}-${index}`,
-        })
-      )
-      .map((data) => () => fetch('http://localhost:3000/upload', { method: 'POST', body: data }));
+      .map((chunk, index) => ({
+        ...chunk,
+        filename: file.name,
+        filehash: hash,
+        hash: `${hash}-${index}`,
+      }))
+      .filter((chunk) => !uploaded.includes(chunk.hash))
+      .map(
+        (data) => () =>
+          fetch('http://localhost:3000/upload', { method: 'POST', body: createFormData(data) })
+      );
 
     await Promise.all(tasks.map((task) => task()));
 
