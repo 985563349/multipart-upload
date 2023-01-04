@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { createFileChunks, calculateHashSample, createFormData } from './utils';
+import { createFileChunks, calculateHashSample, createFormData, scheduler } from './utils';
 
 const SIZE = 10 * 1024 * 1024;
 
@@ -19,6 +19,7 @@ function App() {
       return;
     }
 
+    // create file chunks
     const fileChunks = createFileChunks(file, SIZE);
 
     const tasks = fileChunks
@@ -34,7 +35,8 @@ function App() {
           fetch('http://localhost:3000/upload', { method: 'POST', body: createFormData(data) })
       );
 
-    await Promise.all(tasks.map((task) => task()));
+    // concurrency request
+    await scheduler(tasks, 4);
 
     // request merge
     await fetch('http://localhost:3000/upload-merge', {
