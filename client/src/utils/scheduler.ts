@@ -5,7 +5,7 @@ function scheduler(tasks: (() => Promise<any>)[], max = 4) {
     function start() {
       while (i < tasks.length && max > 0) {
         max--;
-        tasks[i]().then(() => {
+        tasks[i]().finally(() => {
           max++;
           if (i === tasks.length) {
             resolve(null);
