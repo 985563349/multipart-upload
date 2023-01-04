@@ -1,4 +1,6 @@
 import React, { useState } from 'react';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faCloudUploadAlt } from '@fortawesome/free-solid-svg-icons';
 import { createFileChunks, calculateHashSample, createFormData, scheduler } from './utils';
 
 const SIZE = 10 * 1024 * 1024;
@@ -64,8 +66,9 @@ function App() {
         </h1>
 
         <form className="mb-4">
-          <label className="flex justify-center items-center border-2 border-dashed border-blue-300 rounded-md h-40 cursor-pointer">
+          <label className="flex flex-col justify-center items-center gap-4 border-2 border-dashed border-blue-300 rounded-md h-40 cursor-pointer">
             <input type="file" hidden onChange={handleChange} />
+            <FontAwesomeIcon icon={faCloudUploadAlt} className="text-4xl text-blue-300" />
             <p className="text-xl text-blue-300">Browse File to Upload</p>
           </label>
         </form>
