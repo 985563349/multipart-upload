@@ -12,7 +12,7 @@ export const verifyUpload = (params: { filename: string; filehash: string }) => 
 };
 
 export const mergeUpload = (body: { filename: string; filehash: string; size: number }) => {
-  return new Promise(() => {
+  return new Promise((resolve, reject) => {
     request({
       url: 'http://localhost:3000/upload-merge',
       method: 'POST',
@@ -20,6 +20,8 @@ export const mergeUpload = (body: { filename: string; filehash: string; size: nu
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(body),
+      onSuccess: resolve,
+      onError: reject,
     });
   });
 };
