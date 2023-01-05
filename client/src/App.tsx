@@ -66,8 +66,8 @@ function App() {
     if (uploaded.length) {
       fileChunks.forEach((chunk) => {
         if (uploaded.includes(chunk.hash)) chunk.percent = 100;
-        updateFile(file.uid, { percent: ~~(getFileChunksLoaded() / file.size) });
       });
+      updateFile(file.uid, { percent: ~~(getFileChunksLoaded() / file.size) });
     }
 
     const tasks = fileChunks
@@ -100,12 +100,17 @@ function App() {
     updateFile(file.uid, { status: 'done' });
   };
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       const fileObj = file2Obj(file);
       setFiles((s) => [...s, fileObj]);
-      uploadFile(fileObj);
+
+      try {
+        await uploadFile(fileObj);
+      } catch {
+        updateFile(fileObj.uid, { status: 'error' });
+      }
     }
   };
 
@@ -126,23 +131,24 @@ function App() {
 
         <ul className="flex flex-col gap-4">
           {files.map((file) => (
-            <li className="p-4 rounded-md bg-blue-100" key={file.name}>
+            <li
+              className={`p-4 rounded-md ${file.status === 'error' ? 'bg-red-100' : 'bg-blue-100'}`}
+              key={file.name}
+            >
               <div className="flex flex-col gap-2">
                 <div className="flex justify-between items-center text-sm">
                   <span>{file.name}</span>
                   {file.status === 'uploading' && <span>{file.percent}%</span>}
                 </div>
 
-                {file.status === 'uploading' && (
+                {file.status === 'uploading' ? (
                   <div className="h-1.5 rounded-md bg-white">
                     <div
                       style={{ width: `${file.percent}%` }}
                       className="h-full rounded-md bg-blue-300"
                     ></div>
                   </div>
-                )}
-
-                {file.status === 'done' && (
+                ) : (
                   <div className="text-xs">
                     <span>{(file.size / 1024 / 1024).toFixed(2)}mb</span>
                   </div>

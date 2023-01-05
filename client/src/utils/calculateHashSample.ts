@@ -7,7 +7,7 @@ const calculateHashSample = (file: File) => {
     const size = file.size;
     const offset = 2 * 1024 * 1024;
 
-    let chunks = [file.slice(0, offset)];
+    const chunks = [file.slice(0, offset)];
     let cur = offset;
 
     while (cur < size) {
