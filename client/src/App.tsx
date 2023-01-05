@@ -3,17 +3,17 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faCloudUploadAlt } from '@fortawesome/free-solid-svg-icons';
 import { createFileChunks, calculateHashSample, createFormData, scheduler } from './utils';
 
-const SIZE = 10 * 1024 * 1024;
+const CHUNK_SIZE = 10 * 1024 * 1024;
 
 function App() {
   const [files, setFiles] = useState<File[]>([]);
 
   const uploadFile = async (file: File) => {
-    const hash = await calculateHashSample(file);
+    const filehash = await calculateHashSample(file);
 
     // verify upload
     const { shouldUpload, uploaded } = await fetch(
-      `http://localhost:3000/upload-verify?filename=${file.name}&filehash=${hash}`
+      `http://localhost:3000/upload-verify?filename=${file.name}&filehash=${filehash}`
     ).then((response) => response.json());
 
     if (!shouldUpload) {
@@ -22,15 +22,14 @@ function App() {
     }
 
     // create file chunks
-    const fileChunks = createFileChunks(file, SIZE);
+    const fileChunks = createFileChunks(file, CHUNK_SIZE).map((chunk, index) => ({
+      ...chunk,
+      filename: file.name,
+      filehash,
+      hash: `${filehash}-${index}`,
+    }));
 
     const tasks = fileChunks
-      .map((chunk, index) => ({
-        ...chunk,
-        filename: file.name,
-        filehash: hash,
-        hash: `${hash}-${index}`,
-      }))
       .filter((chunk) => !uploaded.includes(chunk.hash))
       .map(
         (data) => () =>
@@ -46,7 +45,7 @@ function App() {
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ filename: file.name, filehash: hash, size: SIZE }),
+      body: JSON.stringify({ filename: file.name, filehash, size: CHUNK_SIZE }),
     });
   };
 
