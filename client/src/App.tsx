@@ -24,6 +24,7 @@ export const file2Obj = (file: File): FileObj => ({
 });
 
 const CHUNK_SIZE = 10 * 1024 * 1024;
+const RETRY_COUNT = 3;
 
 function App() {
   const [files, setFiles] = useState<FileObj[]>([]);
@@ -76,19 +77,33 @@ function App() {
       .map(
         (chunk) => () =>
           new Promise((resolve, reject) => {
-            const xhr = request({
-              url: 'http://localhost:3000/upload',
-              method: 'POST',
-              body: createFormData(chunk),
-              onSuccess: resolve,
-              onError: reject,
-              onProgress: (e) => {
-                if (e.percent) {
-                  chunk.percent = e.percent;
-                  updateFile(file.uid, { percent: ~~(getFileChunksLoaded() / file.size) });
-                }
-              },
-            });
+            let xhr;
+            let count = RETRY_COUNT;
+
+            (function start() {
+              xhr = request({
+                url: 'http://localhost:3000/upload',
+                method: 'POST',
+                body: createFormData(chunk),
+                onSuccess: resolve,
+                onError: (e) => {
+                  if (count > 0) {
+                    // retry
+                    start();
+                    count--;
+                  } else {
+                    reject(e);
+                  }
+                },
+                onProgress: (e) => {
+                  if (e.percent) {
+                    chunk.percent = e.percent;
+                    updateFile(file.uid, { percent: ~~(getFileChunksLoaded() / file.size) });
+                  }
+                },
+              });
+            })();
+
             console.log(xhr);
           })
       );

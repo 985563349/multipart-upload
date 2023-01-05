@@ -6,15 +6,15 @@ function scheduler(tasks: (() => Promise<any>)[], max = 4) {
       while (i < tasks.length && max > 0) {
         max--;
         tasks[i]()
-          .catch(() => reject())
-          .finally(() => {
+          .then(() => {
             max++;
             if (i === tasks.length) {
               resolve(null);
             } else {
               start();
             }
-          });
+          })
+          .catch(() => reject(new Error('Task exception execution interrupt!')));
         i++;
       }
     }
