@@ -1,7 +1,7 @@
 import SparkMD5 from 'spark-md5';
 
 const calculateHashSample = (file: File) => {
-  return new Promise((resolve) => {
+  return new Promise<string>((resolve) => {
     const spark = new SparkMD5.ArrayBuffer();
     const reader = new FileReader();
     const size = file.size;

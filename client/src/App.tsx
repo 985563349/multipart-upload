@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faCloudUploadAlt } from '@fortawesome/free-solid-svg-icons';
-import { createFileChunks, calculateHashSample, createFormData, scheduler } from './utils';
+
+import { createFileChunks, calculateHashSample, createFormData, request, scheduler } from './utils';
+import { verifyUpload, mergeUpload } from './service';
 
 const CHUNK_SIZE = 10 * 1024 * 1024;
 
@@ -12,9 +14,7 @@ function App() {
     const filehash = await calculateHashSample(file);
 
     // verify upload
-    const { shouldUpload, uploaded } = await fetch(
-      `http://localhost:3000/upload-verify?filename=${file.name}&filehash=${filehash}`
-    ).then((response) => response.json());
+    const { shouldUpload, uploaded } = await verifyUpload({ filename: file.name, filehash });
 
     if (!shouldUpload) {
       console.log('skip upload: file upload success!');
@@ -32,21 +32,24 @@ function App() {
     const tasks = fileChunks
       .filter((chunk) => !uploaded.includes(chunk.hash))
       .map(
-        (data) => () =>
-          fetch('http://localhost:3000/upload', { method: 'POST', body: createFormData(data) })
+        (chunk) => () =>
+          new Promise((resolve, reject) => {
+            const xhr = request({
+              url: 'http://localhost:3000/upload',
+              method: 'POST',
+              body: createFormData(chunk),
+              onSuccess: resolve,
+              onError: reject,
+            });
+            console.log(xhr);
+          })
       );
 
     // concurrency request
     await scheduler(tasks, 4);
 
     // request merge
-    await fetch('http://localhost:3000/upload-merge', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ filename: file.name, filehash, size: CHUNK_SIZE }),
-    });
+    await mergeUpload({ filename: file.name, filehash, size: CHUNK_SIZE });
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
