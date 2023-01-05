@@ -54,7 +54,7 @@ function App() {
       filename: file.name,
       filehash,
       hash: `${filehash}-${index}`,
-      percent: 0,
+      percent: 0, // The percent attribute will be updated (such as in the upload task onProgress method)
     }));
 
     const getFileChunksLoaded = () => {
@@ -70,6 +70,7 @@ function App() {
       updateFile(file.uid, { percent: ~~(getFileChunksLoaded() / file.size) });
     }
 
+    // create upload tasks
     const tasks = fileChunks
       .filter((chunk) => !uploaded.includes(chunk.hash))
       .map(
