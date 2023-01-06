@@ -71,42 +71,42 @@ function App() {
       updateFile(file.uid, { percent: ~~(getFileChunksLoaded() / file.size) });
     }
 
+    const createUploadChunkTask = (chunk: any) => () =>
+      new Promise((resolve, reject) => {
+        let xhr;
+        let count = RETRY_COUNT;
+
+        (function start() {
+          xhr = request({
+            url: 'http://localhost:3000/upload',
+            method: 'POST',
+            body: createFormData(chunk),
+            onSuccess: resolve,
+            onError: (e) => {
+              if (count > 0) {
+                // retry
+                start();
+                count--;
+              } else {
+                reject(e);
+              }
+            },
+            onProgress: (e) => {
+              if (e.percent) {
+                chunk.percent = e.percent;
+                updateFile(file.uid, { percent: ~~(getFileChunksLoaded() / file.size) });
+              }
+            },
+          });
+        })();
+
+        console.log(xhr);
+      });
+
     // create upload tasks
     const tasks = fileChunks
       .filter((chunk) => !uploaded.includes(chunk.hash))
-      .map(
-        (chunk) => () =>
-          new Promise((resolve, reject) => {
-            let xhr;
-            let count = RETRY_COUNT;
-
-            (function start() {
-              xhr = request({
-                url: 'http://localhost:3000/upload',
-                method: 'POST',
-                body: createFormData(chunk),
-                onSuccess: resolve,
-                onError: (e) => {
-                  if (count > 0) {
-                    // retry
-                    start();
-                    count--;
-                  } else {
-                    reject(e);
-                  }
-                },
-                onProgress: (e) => {
-                  if (e.percent) {
-                    chunk.percent = e.percent;
-                    updateFile(file.uid, { percent: ~~(getFileChunksLoaded() / file.size) });
-                  }
-                },
-              });
-            })();
-
-            console.log(xhr);
-          })
-      );
+      .map(createUploadChunkTask);
 
     // concurrency request
     await scheduler(tasks, 4);
