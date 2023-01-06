@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
   faCloudUploadAlt,
@@ -37,11 +37,12 @@ const RETRY_COUNT = 3;
 
 function App() {
   const [files, setFiles] = useState<FileObj[]>([]);
+  const executionQueue = useRef<Record<string, XMLHttpRequest[]>>({});
 
-  const updateFile = (uid: number, file: Partial<FileObj>) => {
+  const updateFile = (uid: number, state: Partial<FileObj>) => {
     setFiles((s) => {
-      const cur = s.find((f) => f.uid === uid)!;
-      Object.assign(cur, file);
+      const preState = s.find((f) => f.uid === uid)!;
+      Object.assign(preState, state);
       return [...s];
     });
   };
@@ -80,9 +81,13 @@ function App() {
       updateFile(file.uid, { percent: ~~(getFileChunksLoaded() / file.size) });
     }
 
+    // create task execution queue
+    if (!executionQueue.current[file.uid]) executionQueue.current[file.uid] = [];
+    const currentExecutionQueue = executionQueue.current[file.uid];
+
     const createUploadChunkTask = (chunk: any) => () =>
       new Promise((resolve, reject) => {
-        let xhr;
+        let xhr: XMLHttpRequest;
         let count = RETRY_COUNT;
 
         (function start() {
@@ -90,8 +95,18 @@ function App() {
             url: 'http://localhost:3000/upload',
             method: 'POST',
             body: createFormData(chunk),
-            onSuccess: resolve,
+            onSuccess: (e) => {
+              currentExecutionQueue.splice(
+                currentExecutionQueue.findIndex((item) => item === xhr) >>> 0,
+                1
+              );
+              resolve(e);
+            },
             onError: (e) => {
+              currentExecutionQueue.splice(
+                currentExecutionQueue.findIndex((item) => item === xhr) >>> 0,
+                1
+              );
               if (count > 0) {
                 // retry
                 start();
@@ -103,13 +118,17 @@ function App() {
             onProgress: (e) => {
               if (e.percent) {
                 chunk.percent = e.percent;
-                updateFile(file.uid, { percent: ~~(getFileChunksLoaded() / file.size) });
+                // FIX: continue to upload progress is reset
+                const percent = ~~(getFileChunksLoaded() / file.size);
+                if (percent > file.percent) {
+                  updateFile(file.uid, { percent });
+                }
               }
             },
           });
         })();
 
-        console.log(xhr);
+        currentExecutionQueue.push(xhr);
       });
 
     // create upload tasks
@@ -133,6 +152,7 @@ function App() {
 
       try {
         await uploadFile(fileObj);
+        delete executionQueue.current[fileObj.uid];
       } catch {
         updateFile(fileObj.uid, { status: 'error' });
       }
@@ -140,13 +160,14 @@ function App() {
   };
 
   const pause = (uid: number) => {
+    executionQueue.current[uid]?.forEach((xhr) => xhr.abort());
+    executionQueue.current[uid] = [];
     updateFile(uid, { status: 'pause' });
-    console.log('暂停');
   };
 
   const resume = (uid: number) => {
     updateFile(uid, { status: 'uploading' });
-    console.log('恢复');
+    uploadFile(files.find((f) => f.uid === uid)!);
   };
 
   return (
