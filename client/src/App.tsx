@@ -1,20 +1,29 @@
 import React, { useState } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faCloudUploadAlt, faCheck, faFileLines, faXmark } from '@fortawesome/free-solid-svg-icons';
+import {
+  faCloudUploadAlt,
+  faCheck,
+  faFileLines,
+  faXmark,
+  faPause,
+  faPlay,
+} from '@fortawesome/free-solid-svg-icons';
 
 import { createFileChunks, calculateHashSample, createFormData, request, scheduler } from './utils';
 import { verifyUpload, mergeUpload } from './service';
 
-export interface FileObj {
+type FileStatus = 'uploading' | 'done' | 'error' | 'pause';
+
+interface FileObj {
   uid: number;
   name: string;
   size: number;
   percent: number;
-  status: string;
+  status: FileStatus;
   originFileObj: File;
 }
 
-export const file2Obj = (file: File): FileObj => ({
+const file2Obj = (file: File): FileObj => ({
   uid: Date.now(),
   name: file.name,
   size: file.size,
@@ -130,6 +139,16 @@ function App() {
     }
   };
 
+  const pause = (uid: number) => {
+    updateFile(uid, { status: 'pause' });
+    console.log('暂停');
+  };
+
+  const resume = (uid: number) => {
+    updateFile(uid, { status: 'uploading' });
+    console.log('恢复');
+  };
+
   return (
     <div className="flex justify-center items-center min-h-screen bg-blue-300">
       <div className="p-6 w-96 rounded-lg bg-white">
@@ -161,15 +180,36 @@ function App() {
               <div className="flex flex-1 flex-col gap-2">
                 <div className="flex justify-between items-center">
                   <span>{file.name}</span>
-                  {file.status === 'uploading' && <span className="text-sm">{file.percent}%</span>}
+                  {['uploading', 'pause'].includes(file.status) && (
+                    <span className="text-sm">{file.percent}%</span>
+                  )}
                 </div>
 
-                {file.status === 'uploading' ? (
-                  <div className="my-[5px] h-1.5 rounded-md bg-white">
-                    <div
-                      style={{ width: `${file.percent}%` }}
-                      className="h-full rounded-md bg-blue-300"
-                    ></div>
+                {['uploading', 'pause'].includes(file.status) ? (
+                  <div className="flex gap-3 items-center">
+                    <div className="flex-1 h-1.5 rounded-md bg-white">
+                      <div
+                        style={{ width: `${file.percent}%` }}
+                        className="h-full rounded-md bg-blue-300"
+                      ></div>
+                    </div>
+
+                    <span
+                      className="relative before:block before:absolute before:-inset-2 cursor-pointer leading-none transition hover:text-blue-300"
+                      onClick={() => {
+                        if (file.status === 'uploading') {
+                          pause(file.uid);
+                        } else {
+                          resume(file.uid);
+                        }
+                      }}
+                    >
+                      {file.status === 'uploading' ? (
+                        <FontAwesomeIcon icon={faPause} className="px-[1px]" />
+                      ) : (
+                        <FontAwesomeIcon icon={faPlay} />
+                      )}
+                    </span>
                   </div>
                 ) : (
                   <div className="text-xs">
