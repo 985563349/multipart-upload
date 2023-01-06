@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faCloudUploadAlt } from '@fortawesome/free-solid-svg-icons';
+import { faCloudUploadAlt, faCheck, faFileLines, faXmark } from '@fortawesome/free-solid-svg-icons';
 
 import { createFileChunks, calculateHashSample, createFormData, request, scheduler } from './utils';
 import { verifyUpload, mergeUpload } from './service';
@@ -148,17 +148,24 @@ function App() {
         <ul className="flex flex-col gap-4">
           {files.map((file) => (
             <li
-              className={`p-4 rounded-md ${file.status === 'error' ? 'bg-red-100' : 'bg-blue-100'}`}
+              className={`flex items-center gap-4 px-4 py-3 rounded-md ${
+                file.status === 'error' ? 'bg-red-100' : 'bg-blue-100'
+              }`}
               key={file.name}
             >
-              <div className="flex flex-col gap-2">
-                <div className="flex justify-between items-center text-sm">
+              <FontAwesomeIcon
+                icon={faFileLines}
+                className={`text-4xl ${file.status === 'error' ? 'text-red-300' : 'text-blue-300'}`}
+              />
+
+              <div className="flex flex-1 flex-col gap-2">
+                <div className="flex justify-between items-center">
                   <span>{file.name}</span>
-                  {file.status === 'uploading' && <span>{file.percent}%</span>}
+                  {file.status === 'uploading' && <span className="text-sm">{file.percent}%</span>}
                 </div>
 
                 {file.status === 'uploading' ? (
-                  <div className="h-1.5 rounded-md bg-white">
+                  <div className="my-[5px] h-1.5 rounded-md bg-white">
                     <div
                       style={{ width: `${file.percent}%` }}
                       className="h-full rounded-md bg-blue-300"
@@ -170,6 +177,14 @@ function App() {
                   </div>
                 )}
               </div>
+
+              {file.status === 'done' && (
+                <FontAwesomeIcon icon={faCheck} className="text-xl text-blue-300" />
+              )}
+
+              {file.status === 'error' && (
+                <FontAwesomeIcon icon={faXmark} className="mx-1 text-2xl text-red-300" />
+              )}
             </li>
           ))}
         </ul>
