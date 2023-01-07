@@ -37,9 +37,9 @@ const RETRY_COUNT = 3;
 
 function App() {
   const [files, setFiles] = useState<FileObj[]>([]);
-  const executionQueue = useRef<Record<string, XMLHttpRequest[]>>({});
+  const httpExecutionQueue = useRef<Record<string, XMLHttpRequest[]>>({});
 
-  const updateFile = (uid: number, state: Partial<FileObj>) => {
+  const updateFileState = (uid: number, state: Partial<FileObj>) => {
     setFiles((s) => {
       const preState = s.find((f) => f.uid === uid)!;
       Object.assign(preState, state);
@@ -54,7 +54,7 @@ function App() {
     const { shouldUpload, uploaded } = await verifyUpload({ filename: file.name, filehash });
 
     if (!shouldUpload) {
-      updateFile(file.uid, { percent: 100, status: 'done' });
+      updateFileState(file.uid, { percent: 100, status: 'done' });
       console.log('skip upload: file upload success!');
       return;
     }
@@ -78,12 +78,12 @@ function App() {
       fileChunks.forEach((chunk) => {
         if (uploaded.includes(chunk.hash)) chunk.percent = 100;
       });
-      updateFile(file.uid, { percent: ~~(getFileChunksLoaded() / file.size) });
+      updateFileState(file.uid, { percent: ~~(getFileChunksLoaded() / file.size) });
     }
 
     // create task execution queue
-    if (!executionQueue.current[file.uid]) executionQueue.current[file.uid] = [];
-    const currentExecutionQueue = executionQueue.current[file.uid];
+    if (!httpExecutionQueue.current[file.uid]) httpExecutionQueue.current[file.uid] = [];
+    const currentHttpExecutionQueue = httpExecutionQueue.current[file.uid];
 
     const createUploadChunkTask = (chunk: any) => () =>
       new Promise((resolve, reject) => {
@@ -96,15 +96,15 @@ function App() {
             method: 'POST',
             body: createFormData(chunk),
             onSuccess: (e) => {
-              currentExecutionQueue.splice(
-                currentExecutionQueue.findIndex((item) => item === xhr) >>> 0,
+              currentHttpExecutionQueue.splice(
+                currentHttpExecutionQueue.findIndex((x) => x === xhr) >>> 0,
                 1
               );
               resolve(e);
             },
             onError: (e) => {
-              currentExecutionQueue.splice(
-                currentExecutionQueue.findIndex((item) => item === xhr) >>> 0,
+              currentHttpExecutionQueue.splice(
+                currentHttpExecutionQueue.findIndex((x) => x === xhr) >>> 0,
                 1
               );
               if (count > 0) {
@@ -121,14 +121,14 @@ function App() {
                 // FIX: continue to upload progress is reset
                 const percent = ~~(getFileChunksLoaded() / file.size);
                 if (percent > file.percent) {
-                  updateFile(file.uid, { percent });
+                  updateFileState(file.uid, { percent });
                 }
               }
             },
           });
         })();
 
-        currentExecutionQueue.push(xhr);
+        currentHttpExecutionQueue.push(xhr);
       });
 
     // create upload tasks
@@ -141,7 +141,7 @@ function App() {
 
     // request merge
     await mergeUpload({ filename: file.name, filehash, size: CHUNK_SIZE });
-    updateFile(file.uid, { status: 'done' });
+    updateFileState(file.uid, { status: 'done' });
   };
 
   const handleChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -152,21 +152,21 @@ function App() {
 
       try {
         await uploadFile(fileObj);
-        delete executionQueue.current[fileObj.uid];
+        delete httpExecutionQueue.current[fileObj.uid];
       } catch {
-        updateFile(fileObj.uid, { status: 'error' });
+        updateFileState(fileObj.uid, { status: 'error' });
       }
     }
   };
 
   const pause = (uid: number) => {
-    executionQueue.current[uid]?.forEach((xhr) => xhr.abort());
-    executionQueue.current[uid] = [];
-    updateFile(uid, { status: 'pause' });
+    httpExecutionQueue.current[uid]?.forEach((xhr) => xhr.abort());
+    httpExecutionQueue.current[uid] = [];
+    updateFileState(uid, { status: 'pause' });
   };
 
   const resume = (uid: number) => {
-    updateFile(uid, { status: 'uploading' });
+    updateFileState(uid, { status: 'uploading' });
     uploadFile(files.find((f) => f.uid === uid)!);
   };
 
