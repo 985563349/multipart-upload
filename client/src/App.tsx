@@ -142,6 +142,9 @@ function App() {
     // request merge
     await mergeUpload({ filename: file.name, filehash, size: CHUNK_SIZE });
     updateFileState(file.uid, { status: 'done' });
+
+    // delete task execution queue
+    delete httpExecutionQueue.current[file.uid];
   };
 
   const handleChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -152,7 +155,6 @@ function App() {
 
       try {
         await uploadFile(fileObj);
-        delete httpExecutionQueue.current[fileObj.uid];
       } catch {
         updateFileState(fileObj.uid, { status: 'error' });
       }
@@ -165,9 +167,14 @@ function App() {
     updateFileState(uid, { status: 'pause' });
   };
 
-  const resume = (uid: number) => {
+  const resume = async (uid: number) => {
     updateFileState(uid, { status: 'uploading' });
-    uploadFile(files.find((f) => f.uid === uid)!);
+
+    try {
+      await uploadFile(files.find((f) => f.uid === uid)!);
+    } catch {
+      updateFileState(uid, { status: 'error' });
+    }
   };
 
   return (
