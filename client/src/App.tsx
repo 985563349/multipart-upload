@@ -15,7 +15,7 @@ import { verifyUpload, mergeUpload } from './service';
 type FileStatus = 'uploading' | 'done' | 'error' | 'pause';
 
 interface FileObj {
-  uid: number;
+  uid: string;
   name: string;
   size: number;
   percent: number;
@@ -24,7 +24,7 @@ interface FileObj {
 }
 
 const file2Obj = (file: File): FileObj => ({
-  uid: Date.now(),
+  uid: crypto.randomUUID(),
   name: file.name,
   size: file.size,
   percent: 0,
@@ -39,7 +39,7 @@ function App() {
   const [files, setFiles] = useState<FileObj[]>([]);
   const httpExecutionQueue = useRef<Record<string, XMLHttpRequest[]>>({});
 
-  const updateFileState = (uid: number, state: Partial<FileObj>) => {
+  const updateFileState = (uid: string, state: Partial<FileObj>) => {
     setFiles((s) => {
       const preState = s.find((f) => f.uid === uid)!;
       Object.assign(preState, state);
@@ -161,13 +161,13 @@ function App() {
     }
   };
 
-  const pause = (uid: number) => {
+  const pause = (uid: string) => {
     httpExecutionQueue.current[uid]?.forEach((xhr) => xhr.abort());
     httpExecutionQueue.current[uid] = [];
     updateFileState(uid, { status: 'pause' });
   };
 
-  const resume = async (uid: number) => {
+  const resume = async (uid: string) => {
     updateFileState(uid, { status: 'uploading' });
 
     try {
