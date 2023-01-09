@@ -28,7 +28,7 @@ const file2Obj = (file: File): FileObj => ({
   name: file.name,
   size: file.size,
   percent: 0,
-  status: 'uploading',
+  status: 'pause',
   originFileObj: file,
 });
 
