@@ -34,6 +34,7 @@ const file2Obj = (file: File): FileObj => ({
 
 const CHUNK_SIZE = 10 * 1024 * 1024;
 const RETRY_COUNT = 3;
+const MAX_REQUEST_COUNT = 4;
 
 function App() {
   const [files, setFiles] = useState<FileObj[]>([]);
@@ -137,7 +138,7 @@ function App() {
       .map(createUploadChunkTask);
 
     // concurrency request
-    await scheduler(tasks, 4);
+    await scheduler(tasks, MAX_REQUEST_COUNT);
 
     // request merge
     await mergeUpload({ filename: file.name, filehash, size: CHUNK_SIZE });
