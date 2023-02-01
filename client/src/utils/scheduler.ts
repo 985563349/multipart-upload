@@ -1,4 +1,6 @@
 function scheduler(tasks: (() => Promise<any>)[], max = 4) {
+  if (tasks.length <= 0) return Promise.resolve(null);
+
   return new Promise((resolve, reject) => {
     let i = 0;
     let count = 0;
